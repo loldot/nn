@@ -3,147 +3,299 @@
 #include <time.h>   
 #include <stdlib.h>
 #include "debug.c"
+#include "nn.h"
+#include "io.c"
 
 FILE *mnist_images;
 FILE *mnist_labels;
-const size_t input_size = 784;
 
-typedef struct Layer
-{
-    int input_size;
-    int output_size;
-    float* weights;
-    float* bias;
-} Layer;
-
-
-float weights_0[input_size][16];
-float bias_0[16];
-const Layer layer0 = {input_size, 16, weights_0, bias_0};
+// Input layer
+double weights_0[input_size][hidden_size];
+double bias_0[hidden_size];
 
 // Hidden layer 1
-float weights_1[16][16];
-float bias_1[16];
-const Layer layer1 = {16, 16, weights_1, bias_1};
+double weights_1[hidden_size][hidden_size];
+double bias_1[hidden_size];
 
+// Hidden layer 2
+double weights_2[hidden_size][output_size];
+double bias_2[output_size];
 
-float weights_2[16][10];
-float bias_2[16];
-const Layer layer2 = {16, 10, weights_2, bias_2};
-
-const float sigmoid(float x){
-    return 1 / (1 + exp(-x));
+const double activation(double x){
+    return tanh(x);
+}
+const double activation_prime(double x){
+    return (1 - x) * (1 + x);
 }
 
 // Forward propagation function
-void forward(const Layer* layer, const float* input, float* output) {
-    for (int i = 0; i < layer->output_size; i++) {
-        float sum = .0f;
-        for (int j = 0; j < layer->input_size; j++) {
-            sum += input[j] * layer->weights[i * layer->input_size + j];
+void forward(
+    const double* input, int m, 
+    double* output, int n,
+    double weights[m][n],
+    double* bias
+) {
+    for (int i = 0; i < n; i++) {
+        double sum = .0f;
+        for (int j = 0; j < m; j++) {
+            sum += input[j] * weights[j][i];
         }
-        output[i] = sigmoid(sum + layer->bias[i]);
+        output[i] = activation(sum + bias[i]);
     }
+}
+
+
+void forward_softmax(
+    const double* input, int m, 
+    double* output, int n,
+    double weights[m][n], 
+    double* bias
+) {
+    double total = 0.0f;
+    for (int i = 0; i < n; i++) {
+        double sum = .0f;
+        
+        for (int j = 0; j < m; j++) {
+            sum += input[j] * weights[j][i];
+        }
+        output[i] = exp(sum + bias[i]);
+        total += output[i];
+    }
+    
+    for (int i = 0; i < n; i++) {
+        output[i] /= total;
+    }
+}
+
+void predict(double* input, double* hidden, double* hidden2, double* output){
+    forward(
+        input, input_size, 
+        hidden, hidden_size,
+        weights_0, bias_0
+    );
+    forward(
+        hidden, hidden_size, 
+        hidden2, hidden_size,
+        weights_1, bias_1
+    );
+    forward_softmax(
+        hidden2, hidden_size, 
+        output, output_size,
+        weights_2, bias_2
+    );
+}
+
+void predict_debug(double* input, double* hidden, double* hidden2, double* output){
+    forward(
+        input, input_size, 
+        hidden, hidden_size,
+        weights_0, bias_0
+    );
+    printf("Hidden 0: ");
+    print_tensor(hidden, hidden_size);
+
+    printf("Bias: ");
+    print_tensor(bias_0, hidden_size);
+
+    forward(
+        hidden, hidden_size, 
+        hidden2, hidden_size,
+        weights_1, bias_1
+    );
+    
+    printf("Hidden 1: ");
+    print_tensor(hidden2, hidden_size);
+
+    printf("Bias: ");
+    print_tensor(bias_1, hidden_size);
+
+    forward_softmax(
+        hidden2, hidden_size, 
+        output, output_size,
+        weights_2, bias_2
+    );
+    printf("Output: ");
+    highlight_tensor(output, output_size, max_index(output, output_size));
+}
+
+
+int recognize_digit(double* input){
+    double hidden[hidden_size];
+    double hidden2[hidden_size];
+    double output[output_size];
+
+    print_image(input);
+    predict_debug(input, hidden, hidden2, output);
+
+    return max_index(output, output_size);
+}
+
+unsigned char backprop(const double* input, const double* expected){
+    double hidden0[hidden_size];
+    double hidden1[hidden_size];
+    double output[output_size];
+    double output_error[output_size];
+    double hidden0_error[hidden_size];
+    double hidden1_error[hidden_size];
+
+
+    predict(input, hidden0, hidden1, output);
+
+    // 1. Calculate Output Layer Error
+    for (size_t i = 0; i < output_size; i++)
+    {
+        double derivative = (1 - output[i]) * output[i];
+        output_error[i] = (expected[i] - output[i]) * derivative;
+    }
+
+    // 2. Calculate Hidden Layer 1 Error
+    for (int i = 0; i < hidden_size; i++) {
+        double sum = 0.0f;
+        for (int j = 0; j < output_size; j++) {
+            sum += weights_2[i][j] * output_error[j];
+        }
+        hidden1_error[i] = sum * activation_prime(hidden1[i]);
+    }
+
+    // 3. Calculate Hidden Layer 2 Error
+    for (int i = 0; i < hidden_size; i++) {
+        double sum = 0.0f;
+        for (int j = 0; j < hidden_size; j++) {
+            sum += weights_1[i][j] * hidden1_error[j];
+        }
+        hidden0_error[i] = sum * activation_prime(hidden0[i]);
+    }
+
+    // 3. Update Hidden Layer Weights and Biases
+    for (int i = 0; i < hidden_size; i++) {
+        for (int j = 0; j < input_size; j++) {
+            weights_0[j][i] += learning_rate *  hidden0_error[i] * input[j];
+        }
+        bias_0[i] += learning_rate * hidden0_error[i];
+    }
+
+    for (int i = 0; i < hidden_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            weights_1[j][i] += learning_rate *  hidden1_error[i] * hidden0[j];
+        }
+        bias_1[i] += learning_rate * hidden1_error[i];
+    }
+
+    for (int i = 0; i < output_size; i++) {
+        for (int j = 0; j < hidden_size; j++) {
+            weights_2[j][i] += learning_rate * output_error[i] * hidden1[j];
+        }
+        bias_2[i] += learning_rate * output_error[i];
+    }
+
+    return max_index(output, output_size);
 }
 
 void stocastic_gradient_descent(){
+    double input[input_size];
+    double hidden[hidden_size];
+    double output[output_size];
     
-}
+    double label[output_size];
+    unsigned char expected;
+    unsigned char guess;
 
-int recognize_digit(float* input){
-    float hidden0[16];
-    float hidden1[16];
-    float output[10];
+    int correct = 0;
 
-    print_image(input);
-
-    forward(&layer0, input, hidden0);
-    printf("Hidden 0: ");
-    print_tensor(hidden0, 16);
-    forward(&layer1, hidden0, hidden1);
-
-    printf("Hidden 1: ");
-    print_tensor(hidden1, 16);
-    forward(&layer2, hidden1, output);
-
-    printf("Output: ");
-    print_tensor(output, 10);
-    int max = 0;
-    for (size_t i = 0; i < 10; i++)
+    for (size_t e = 0; e < epochs; e++)
     {
-        max = (output[i] > output[max]) ? i : max;
-    }
+        correct = 0;
 
-    return max;
+            fill_input(mnist_images, input, e);
+            int guess = recognize_digit(input);
+            printf("Guess: %d\n", guess);
+
+        for (size_t i = 0; i < traing_set_size; i++)
+        {
+            int offset = rand() % traing_set_size;
+
+            fill_input(mnist_images, input, offset);
+            expected = read_label(mnist_labels, offset);
+
+            for (size_t i = 0; i < output_size; i++)
+            {
+                label[i] = 0.0f;
+            }
+            label[expected] = 1.0f;
+
+            guess = backprop(input, label);
+            correct += (expected == guess) ? 1 : 0;
+        }        
+        printf("Epoch %d: %d / %d\n", e, correct, traing_set_size);
+
+    }
 }
 
 void init() {
-    srand(time(NULL));
+    srand(0xdeadbeef);
     mnist_images = fopen("./data/train-images.idx3-ubyte", "rb");
+    mnist_labels = fopen("./data/train-labels.idx1-ubyte", "rb");
+
     if(mnist_images == NULL){
         printf("Error opening image file\n");
         return;
     }
 
-    mnist_labels = fopen("./data/train-labels.idx1-ubyte", "rb");
     if(mnist_labels == NULL){
         printf("Error opening label file\n");
         return;
     }
 
-    for(int i = 0; i < layer0.input_size; i++){
-        for(int j = 0; j < layer0.output_size; j++){
-            weights_0[i][j] = ((float)rand() / (float)RAND_MAX) -.5f;
-        }
+    FILE* model = fopen("model.bin", "rb");
+    if(model != NULL){
+        load_model(weights_0, bias_0, weights_1, bias_1, "model.bin");
+        fclose(model);
+        return;
     }
-    for (int i = 0; i < layer1.input_size; i++)
+
+    for(int i = 0; i < hidden_size; i++){
+        for(int j = 0; j < input_size; j++){
+            weights_0[j][i] = (double)(rand() % 100) / 10000.0f;
+        }
+        bias_0[i] = 0;
+    }
+    for (int i = 0; i < hidden_size; i++)
     {
-        for (int j = 0; j < layer1.output_size; j++)
+        for (int j = 0; j < hidden_size ; j++)
         {
-            weights_1[i][j] = ((float)rand() / (float)RAND_MAX) -.5f;
+            weights_1[i][j] = (double)(rand() % 100) / 10000.0f;
         }
+        bias_1[i] = 0;
     }
-    for (int i = 0; i < layer2.input_size; i++)
+
+    for (int i = 0; i < output_size; i++)
     {
-        for (int j = 0; j < layer2.output_size; j++)
+        for (int j = 0; j < hidden_size; j++)
         {
-            weights_2[i][j] = ((float)rand() / (float)RAND_MAX) -.5f;
+            weights_2[i][j] = (double)(rand() % 100) / 1000.0f;
         }
+        bias_2[i] = 0;
     }
-}
-
-void fill_input(float* input, int offset){
-    fseek(mnist_images, 16 + input_size * offset, SEEK_SET);
-
-    __uint8_t buffer[input_size];
-    auto bytesRead = fread(buffer, sizeof(__uint8_t), input_size, mnist_images);
-    
-    for (size_t i = 0; i < input_size; i++)
-    {
-        input[i] = buffer[i] / 255.0f;
-    }
-}
-
-__uint8_t read_label(int offset) {
-    fseek(mnist_labels, 8 + offset, SEEK_SET);
-    return fgetc(mnist_labels);
 }
 
 int main(int n, char** args){
-    const int offset = 3;
-    float input[input_size];
+    const int offset = 103;
+    double input[input_size];
     
     init();
 
-    fill_input(input, offset);
+    // fill_input(mnist_images, input, offset);
 
-    auto label = read_label(offset);
+    // int label = read_label(mnist_labels, offset);
+    // int digit = recognize_digit(&input);
 
-    int digit = recognize_digit(&input);
+    // printf("Label: %d\n", label);
+    // printf("Guess: %d\n", digit);
 
-    printf("Label: %d\n", label);
-    printf("Guess: %d\n", digit);
+    stocastic_gradient_descent();
 
+    // store_model(weights_0, bias_0, weights_1, bias_1, "model.bin");
+    
     fclose(mnist_images);
     fclose(mnist_labels);
 }
