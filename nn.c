@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <math.h>
-#include <time.h>   
 #include <stdlib.h>
 #include "debug.c"
 #include "io.c"
@@ -48,10 +47,12 @@ const double activation_prime(double tanh){
 
 // Forward propagation function
 void forward(
-    const double* input, int m, 
-    double* output, int n,
-    double weights[m][n],
-    double* bias
+    const int m,
+    const double input[m],
+    const int n,  
+    double output[n],
+    const double weights[m][n],
+    const double bias[n]
 ) {
     for (int i = 0; i < n; i++) {
         double sum = .0f;
@@ -64,10 +65,12 @@ void forward(
 
 
 void forward_softmax(
-    const double* input, int m, 
-    double* output, int n,
-    double weights[m][n], 
-    double* bias
+    const int m,
+    const double input[m],
+    const int n,  
+    double output[n],
+    const double weights[m][n],
+    const double bias[n]
 ) {
     double total = 0.0f;
     for (int i = 0; i < n; i++) {
@@ -85,28 +88,36 @@ void forward_softmax(
     }
 }
 
-void predict(double* input, double* hidden, double* hidden2, double* output){
+void predict(
+    double input[input_size], 
+    double hidden[hidden_size], 
+    double hidden2[hidden_size], 
+    double output[output_size]){
     forward(
-        input, input_size, 
-        hidden, hidden_size,
+        input_size, input, 
+        hidden_size, hidden, 
         weights_0, bias_0
     );
     forward(
-        hidden, hidden_size, 
-        hidden2, hidden_size,
+        hidden_size, hidden, 
+        hidden_size, hidden2, 
         weights_1, bias_1
     );
     forward_softmax(
-        hidden2, hidden_size, 
-        output, output_size,
+        hidden_size, hidden2, 
+        output_size, output,
         weights_2, bias_2
     );
 }
 
-void predict_debug(double* input, double* hidden, double* hidden2, double* output){
+void predict_debug(
+    double input[input_size], 
+    double hidden[hidden_size], 
+    double hidden2[hidden_size], 
+    double output[output_size]){
     forward(
-        input, input_size, 
-        hidden, hidden_size,
+        input_size, input,  
+        hidden_size, hidden, 
         weights_0, bias_0
     );
     printf("Hidden 0: ");
@@ -116,8 +127,8 @@ void predict_debug(double* input, double* hidden, double* hidden2, double* outpu
     print_tensor(bias_0, hidden_size);
 
     forward(
-        hidden, hidden_size, 
-        hidden2, hidden_size,
+        hidden_size, hidden, 
+        hidden_size, hidden2, 
         weights_1, bias_1
     );
     
@@ -128,8 +139,8 @@ void predict_debug(double* input, double* hidden, double* hidden2, double* outpu
     print_tensor(bias_1, hidden_size);
 
     forward_softmax(
-        hidden2, hidden_size, 
-        output, output_size,
+        hidden_size, hidden2,  
+        output_size, output,
         weights_2, bias_2
     );
     printf("Output: ");
@@ -137,7 +148,7 @@ void predict_debug(double* input, double* hidden, double* hidden2, double* outpu
 }
 
 
-int recognize_digit(double* input){
+int recognize_digit(const double input[input_size]){
     double hidden[hidden_size];
     double hidden2[hidden_size];
     double output[output_size];
