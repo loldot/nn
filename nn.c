@@ -308,23 +308,8 @@ void init() {
 }
 
 int main(int n, char** args){
-    const int offset = 103;
-    double input[input_size];
-    
     init();
-
-    // fill_input(mnist_images, input, offset);
-
-    // int label = read_label(mnist_labels, offset);
-    // int digit = recognize_digit(&input);
-
-    // printf("Label: %d\n", label);
-    // printf("Guess: %d\n", digit);
-
-    stocastic_gradient_descent();
-
-    // store_model(weights_0, bias_0, weights_1, bias_1, "model.bin");
-    
+    stocastic_gradient_descent();    
     fclose(mnist_images);
     fclose(mnist_labels);
 }
