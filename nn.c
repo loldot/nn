@@ -3,8 +3,24 @@
 #include <time.h>   
 #include <stdlib.h>
 #include "debug.c"
-#include "nn.h"
 #include "io.c"
+
+#define input_size 784
+#define hidden_size 16
+#define output_size 10
+
+#define epochs 30
+#define traing_set_size 60000
+#define learning_rate 0.01
+
+const int max_index(const int size, const double tensor[size]){
+    int max = 0;
+    for (size_t i = 0; i < size; i++)
+    {
+        max = (tensor[i] > tensor[max]) ? i : max;
+    }
+    return max;
+}
 
 FILE *mnist_images;
 FILE *mnist_labels;
@@ -24,8 +40,10 @@ double bias_2[output_size];
 const double activation(double x){
     return tanh(x);
 }
-const double activation_prime(double x){
-    return (1 - x) * (1 + x);
+
+// derivative of tanh = (1-tanh²(x))
+const double activation_prime(double tanh){
+    return (1 - tanh) * (1 + tanh);
 }
 
 // Forward propagation function
@@ -115,7 +133,7 @@ void predict_debug(double* input, double* hidden, double* hidden2, double* outpu
         weights_2, bias_2
     );
     printf("Output: ");
-    highlight_tensor(output, output_size, max_index(output, output_size));
+    highlight_tensor(output, output_size, max_index(output_size, output));
 }
 
 
@@ -127,7 +145,7 @@ int recognize_digit(double* input){
     print_image(input);
     predict_debug(input, hidden, hidden2, output);
 
-    return max_index(output, output_size);
+    return max_index(output_size, output);
 }
 
 unsigned char backprop(const double* input, const double* expected){
@@ -188,7 +206,7 @@ unsigned char backprop(const double* input, const double* expected){
         bias_2[i] += learning_rate * output_error[i];
     }
 
-    return max_index(output, output_size);
+    return max_index(output_size, output);
 }
 
 void stocastic_gradient_descent(){
@@ -206,7 +224,7 @@ void stocastic_gradient_descent(){
     {
         correct = 0;
 
-            fill_input(mnist_images, input, e);
+            fill_input(mnist_images, input_size, input, e);
             int guess = recognize_digit(input);
             printf("Guess: %d\n", guess);
 
@@ -214,7 +232,7 @@ void stocastic_gradient_descent(){
         {
             int offset = rand() % traing_set_size;
 
-            fill_input(mnist_images, input, offset);
+            fill_input(mnist_images, input_size, input, offset);
             expected = read_label(mnist_labels, offset);
 
             for (size_t i = 0; i < output_size; i++)
@@ -246,12 +264,12 @@ void init() {
         return;
     }
 
-    FILE* model = fopen("model.bin", "rb");
-    if(model != NULL){
-        load_model(weights_0, bias_0, weights_1, bias_1, "model.bin");
-        fclose(model);
-        return;
-    }
+    // FILE* model = fopen("model.bin", "rb");
+    // if(model != NULL){
+    //     load_model(weights_0, bias_0, weights_1, bias_1, "model.bin");
+    //     fclose(model);
+    //     return;
+    // }
 
     for(int i = 0; i < hidden_size; i++){
         for(int j = 0; j < input_size; j++){
