@@ -5,4 +5,4 @@ Works on this dataset: https://www.kaggle.com/datasets/hojjatk/mnist-dataset whi
 ***Compile and run**
 ```
 clang -std=c23 -lm nn.c -o./bin/a.out && ./bin/a.out
-``
+```
