@@ -148,7 +148,7 @@ int recognize_digit(double* input){
     return max_index(output_size, output);
 }
 
-unsigned char backprop(const double* input, const double* expected){
+unsigned char backprop(const double input[input_size], const double expected[output_size]){
     double hidden0[hidden_size];
     double hidden1[hidden_size];
     double output[output_size];
