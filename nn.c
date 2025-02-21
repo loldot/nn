@@ -21,9 +21,9 @@ const int max_index(const int size, const double tensor[size]){
     return max;
 }
 
-__uint8_t* data = NULL;
-FILE *mnist_images;
-FILE *mnist_labels;
+struct stat data_stat;
+unsigned char* data = NULL;
+unsigned char* labels = NULL;
 
 // Input layer
 double weights_0[input_size][hidden_size];
@@ -63,7 +63,6 @@ void forward(
         output[i] = activation(sum + bias[i]);
     }
 }
-
 
 void forward_softmax(
     const int m,
@@ -243,10 +242,9 @@ void stocastic_gradient_descent(){
         for (size_t i = 0; i < traing_set_size; i++)
         {
             int offset = rand() % traing_set_size;
-
             fill_input(data, input_size, input, offset);
-
-            expected = read_label(mnist_labels, offset);
+            
+            expected = labels[offset];
 
             for (size_t i = 0; i < output_size; i++)
             {
@@ -264,26 +262,11 @@ void stocastic_gradient_descent(){
 
 void init() {
     srand(0xdeadbeef);
-    mnist_images = fopen("./data/train-images.idx3-ubyte", "rb");
-    mnist_labels = fopen("./data/train-labels.idx1-ubyte", "rb");
+    labels = read_labels("./data/train-labels.idx1-ubyte");
+    data = open_dataset("./data/train-images.idx3-ubyte", &data_stat);
 
-
-    if(mnist_images == NULL){
-        printf("Error opening image file\n");
-        return;
-    }
-
-    if(mnist_labels == NULL){
-        printf("Error opening label file\n");
-        return;
-    }
-    data = open_dataset(mnist_images);
-    // FILE* model = fopen("model.bin", "rb");
-    // if(model != NULL){
-    //     load_model(weights_0, bias_0, weights_1, bias_1, "model.bin");
-    //     fclose(model);
-    //     return;
-    // }
+    if(labels == NULL || data == NULL) exit(1);
+        
 
     for(int i = 0; i < hidden_size; i++){
         for(int j = 0; j < input_size; j++){
@@ -314,6 +297,8 @@ int main(int n, char** args){
     init();
     stocastic_gradient_descent(); 
 
-    munmap(data, traing_set_size);
-    fclose(mnist_labels);
+    munmap(data, data_stat.st_size);
+    free(labels);
+    
+    return 0;
 }

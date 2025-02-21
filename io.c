@@ -3,17 +3,41 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-__uint8_t read_label(FILE* mnist_labels, int offset) {
-    fseek(mnist_labels, 8 + offset, SEEK_SET);
-    return fgetc(mnist_labels);
+unsigned char* read_labels(const char* filename) {
+    unsigned int header[2];
+    unsigned int rows, cols;
+    unsigned char* labels;
+
+    FILE* mnist_labels = fopen(filename, "rb");
+    
+    if(mnist_labels == NULL){
+        perror("Failed to open file");
+        return NULL;
+    }
+
+    fread(header, sizeof(__uint32_t), 2, mnist_labels);
+    rows = __builtin_bswap32(header[1]);
+    printf("Rows: %d\n", rows);
+
+    labels = malloc(rows);
+    fread(labels, 1, rows, mnist_labels);    
+    fclose(mnist_labels);
+
+    return labels;
 }
 
-__uint8_t* open_dataset(FILE* file)
+unsigned char* open_dataset(const char* filename, struct stat *data_stat)
 {
-    struct stat st;
-    fstat(file->_fileno, &st);
+    FILE* file = fopen(filename, "rb");
 
-    __uint8_t* addr = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, file->_fileno, 0);
+    if(file == NULL || fstat(file->_fileno, data_stat) > 0){
+        perror("Failed to open file");
+        return NULL;
+    }
+
+    printf("File size: %ld\n", data_stat->st_size);
+
+    unsigned char* addr = mmap(0, data_stat->st_size, PROT_READ, MAP_PRIVATE, file->_fileno, 0);
     fclose(file);
 
     return addr;
