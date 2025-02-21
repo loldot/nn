@@ -1,20 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 __uint8_t read_label(FILE* mnist_labels, int offset) {
     fseek(mnist_labels, 8 + offset, SEEK_SET);
     return fgetc(mnist_labels);
 }
 
-void fill_input(FILE* mnist_images, int n, double input[n], int offset){
-    fseek(mnist_images, 16 + n * offset, SEEK_SET);
+__uint8_t* open_dataset(FILE* file)
+{
+    struct stat st;
+    fstat(file->_fileno, &st);
 
-    __uint8_t buffer[n];
-    auto bytesRead = fread(buffer, sizeof(__uint8_t), n, mnist_images);
-    
+    __uint8_t* addr = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, file->_fileno, 0);
+    fclose(file);
+
+    return addr;
+}
+
+void fill_input(__uint8_t* addr, int n, double input[n], int offset){
     for (size_t i = 0; i < n; i++)
     {
-        input[i] = (double)buffer[i] / 255.0;
+        input[i] = (double)(addr[16 + (n * offset) + i]) / 255.0;
     }
 }
 

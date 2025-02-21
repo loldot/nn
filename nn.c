@@ -21,6 +21,7 @@ const int max_index(const int size, const double tensor[size]){
     return max;
 }
 
+__uint8_t* data = NULL;
 FILE *mnist_images;
 FILE *mnist_labels;
 
@@ -235,7 +236,7 @@ void stocastic_gradient_descent(){
     {
         correct = 0;
 
-            fill_input(mnist_images, input_size, input, e);
+            fill_input(data, input_size, input, e);
             int guess = recognize_digit(input);
             printf("Guess: %d\n", guess);
 
@@ -243,7 +244,8 @@ void stocastic_gradient_descent(){
         {
             int offset = rand() % traing_set_size;
 
-            fill_input(mnist_images, input_size, input, offset);
+            fill_input(data, input_size, input, offset);
+
             expected = read_label(mnist_labels, offset);
 
             for (size_t i = 0; i < output_size; i++)
@@ -265,6 +267,7 @@ void init() {
     mnist_images = fopen("./data/train-images.idx3-ubyte", "rb");
     mnist_labels = fopen("./data/train-labels.idx1-ubyte", "rb");
 
+
     if(mnist_images == NULL){
         printf("Error opening image file\n");
         return;
@@ -274,7 +277,7 @@ void init() {
         printf("Error opening label file\n");
         return;
     }
-
+    data = open_dataset(mnist_images);
     // FILE* model = fopen("model.bin", "rb");
     // if(model != NULL){
     //     load_model(weights_0, bias_0, weights_1, bias_1, "model.bin");
@@ -309,7 +312,8 @@ void init() {
 
 int main(int n, char** args){
     init();
-    stocastic_gradient_descent();    
-    fclose(mnist_images);
+    stocastic_gradient_descent(); 
+
+    munmap(data, traing_set_size);
     fclose(mnist_labels);
 }
