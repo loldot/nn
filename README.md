@@ -4,5 +4,5 @@ Works on this dataset: https://www.kaggle.com/datasets/hojjatk/mnist-dataset whi
 
 ***Compile and run**
 ```
-clang -std=c23 -lm nn.c -o./bin/a.out && ./bin/a.out
+clang -std=c23 -lm nn.c -mllvm -force-vector-width=8 -Ofast -o./bin/a.out  && ./bin/a.out
 ```
