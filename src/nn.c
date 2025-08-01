@@ -22,7 +22,7 @@ unsigned char *data = NULL;
 unsigned char *labels = NULL;
 
 // Input layer
-float weights_0[input_size][hidden_size];
+float weights_0[hidden_size][input_size];
 float bias_0[hidden_size];
 
 // Hidden layer 1
@@ -30,7 +30,7 @@ float weights_1[hidden_size][hidden_size];
 float bias_1[hidden_size];
 
 // Hidden layer 2
-float weights_2[hidden_size][output_size];
+float weights_2[output_size][hidden_size];
 float bias_2[output_size];
 
 int max_index(const int size, const float tensor[size])
@@ -51,14 +51,14 @@ float xavier_init(float m, float n)
 void init_layer(
     const int m,
     const int n,
-    float weights[m][n],
+    float weights[n][m],
     float bias[n])
 {
-    for (int j = 0; j < m; j++)
+    for (int i = 0; i < n; i++)
     {
-        for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
         {
-            weights[j][i] = xavier_init(m, n);
+            weights[i][j] = xavier_init(m, n);
         }
     }
     for (int i = 0; i < n; i++)
@@ -84,7 +84,7 @@ void forward(
     const float input[m],
     const int n,
     float output[n],
-    const float weights[m][n],
+    const float weights[n][m],
     const float bias[n])
 {
     for (int i = 0; i < n; i++)
@@ -92,7 +92,7 @@ void forward(
         float sum = .0f;
         for (int j = 0; j < m; j++)
         {
-            sum += input[j] * weights[j][i];
+            sum += input[j] * weights[i][j];
         }
         output[i] = activation(sum + bias[i]);
     }
@@ -103,7 +103,7 @@ void forward_linear(
     const float input[m],
     const int n,
     float output[n],
-    const float weights[m][n],
+    const float weights[n][m],
     const float bias[n])
 {
     for (int i = 0; i < n; i++)
@@ -111,7 +111,7 @@ void forward_linear(
         float sum = .0f;
         for (int j = 0; j < m; j++)
         {
-            sum += input[j] * weights[j][i];
+            sum += input[j] * weights[i][j];
         }
         output[i] = sum + bias[i];
     }
@@ -224,7 +224,7 @@ int backprop(const float input[input_size], const float expected[output_size])
         float sum = 0.0f;
         for (int j = 0; j < output_size; j++)
         {
-            sum += weights_2[i][j] * output_error[j];
+            sum += weights_2[j][i] * output_error[j];
         }
         hidden2_error[i] = sum * activation_prime(hidden2[i]);
     }
@@ -235,48 +235,39 @@ int backprop(const float input[input_size], const float expected[output_size])
         float sum = 0.0f;
         for (size_t j = 0; j < hidden_size; j++)
         {
-            sum += weights_1[i][j] * hidden2_error[j];
+            sum += weights_1[j][i] * hidden2_error[j];
         }
         hidden1_error[i] = sum * activation_prime(hidden1[i]);
     }
 
     // 4. Update Weights and Biases
     // Update weights_0: input -> hidden1
-    for (size_t j = 0; j < input_size; j++)
-    {
-        for (size_t i = 0; i < hidden_size; i++)
-        {
-            weights_0[j][i] += learning_rate * hidden1_error[i] * input[j];
-        }
-    }
     for (size_t i = 0; i < hidden_size; i++)
     {
+        for (size_t j = 0; j < input_size; j++)
+        {
+            weights_0[i][j] += learning_rate * hidden1_error[i] * input[j];
+        }
         bias_0[i] += learning_rate * hidden1_error[i];
     }
 
     // Update weights_1: hidden1 -> hidden2
-    for (size_t j = 0; j < hidden_size; j++)
-    {
-        for (size_t i = 0; i < hidden_size; i++)
-        {
-            weights_1[j][i] += learning_rate * hidden2_error[i] * hidden1[j];
-        }
-    }
     for (size_t i = 0; i < hidden_size; i++)
     {
+        for (size_t j = 0; j < hidden_size; j++)
+        {
+            weights_1[i][j] += learning_rate * hidden2_error[i] * hidden1[j];
+        }
         bias_1[i] += learning_rate * hidden2_error[i];
     }
 
     // Update weights_2: hidden2 -> output
-    for (size_t j = 0; j < hidden_size; j++)
-    {
-        for (size_t i = 0; i < output_size; i++)
-        {
-            weights_2[j][i] += learning_rate * output_error[i] * hidden2[j];
-        }
-    }
     for (size_t i = 0; i < output_size; i++)
     {
+        for (size_t j = 0; j < hidden_size; j++)
+        {
+            weights_2[i][j] += learning_rate * output_error[i] * hidden2[j];
+        }
         bias_2[i] += learning_rate * output_error[i];
     }
 
@@ -314,7 +305,8 @@ void stochastic_gradient_descent()
             guess = backprop(input, label);
             correct += (expected == guess) ? 1 : 0;
         }
-        learning_rate *= 0.9f; // Decay learning rate
+
+        learning_rate *= 0.99f; // Decay learning rate
 
         // Print progress
         fill_input(data, input_size, input, rand() % training_set_size);

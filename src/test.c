@@ -17,12 +17,10 @@ int assert(int condition, const char *message)
 int feed_forward_should_compute()
 {
     float input[] = {-1, 2, 3, -4};
-    // Transposed weights to match weights[input][output] format
-    float weights[][3] = {
-        {.2f, .5f, .9f},
-        {.3f, .6f, 1.0f},
-        {.1f, .7f, 1.1f},
-        {.4f, .8f, 1.2f}
+    float weights[][4] = {
+        {.2f, .3f, .1f, .4f},
+        {.5f, .6f, .7f, .8f},
+        {.9f, 1.0f, 1.1f, 1.2f}
     };
     float output[] = {0, 0, 0};
     float bias[] = {0.1f, 0.2f, 0.3f};
@@ -62,7 +60,6 @@ int feed_forward_should_compute()
 int run_tests(int argc, char const *argv[])
 {
     int n = feed_forward_should_compute();
-    
     if (n == 0)
     {
         printf("All tests passed!\n");
