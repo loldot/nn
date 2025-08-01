@@ -67,6 +67,11 @@ void init_layer(
     }
 }
 
+float identity(float x)
+{
+    return x;
+}
+
 float activation(float x)
 {
     return tanh(x);
@@ -85,7 +90,9 @@ void forward(
     const int n,
     float output[n],
     const float weights[n][m],
-    const float bias[n])
+    const float bias[n],
+    float (*activation)(float)
+)
 {
     for (int i = 0; i < n; i++)
     {
@@ -95,25 +102,6 @@ void forward(
             sum += input[j] * weights[i][j];
         }
         output[i] = activation(sum + bias[i]);
-    }
-}
-
-void forward_linear(
-    const int m,
-    const float input[m],
-    const int n,
-    float output[n],
-    const float weights[n][m],
-    const float bias[n])
-{
-    for (int i = 0; i < n; i++)
-    {
-        float sum = .0f;
-        for (int j = 0; j < m; j++)
-        {
-            sum += input[j] * weights[i][j];
-        }
-        output[i] = sum + bias[i];
     }
 }
 
@@ -151,15 +139,18 @@ void predict(
     forward(
         input_size, input,
         hidden_size, hidden,
-        weights_0, bias_0);
+        weights_0, bias_0,
+        *activation);
     forward(
         hidden_size, hidden,
         hidden_size, hidden2,
-        weights_1, bias_1);
-    forward_linear(
+        weights_1, bias_1,
+        *activation);
+    forward(
         hidden_size, hidden2,
         output_size, output,
-        weights_2, bias_2);
+        weights_2, bias_2,
+        *identity);
     softmax(output_size, output);
 }
 
@@ -172,7 +163,8 @@ void predict_debug(
     forward(
         input_size, input,
         hidden_size, hidden,
-        weights_0, bias_0);
+        weights_0, bias_0,
+        *activation);
     printf("Hidden 0: ");
     print_tensor(hidden, hidden_size);
 
@@ -182,7 +174,8 @@ void predict_debug(
     forward(
         hidden_size, hidden,
         hidden_size, hidden2,
-        weights_1, bias_1);
+        weights_1, bias_1,
+        *activation);
 
     printf("Hidden 1: ");
     print_tensor(hidden2, hidden_size);
@@ -190,10 +183,11 @@ void predict_debug(
     printf("Bias: ");
     print_tensor(bias_1, hidden_size);
 
-    forward_linear(
+    forward(
         hidden_size, hidden2,
         output_size, output,
-        weights_2, bias_2);
+        weights_2, bias_2,
+        *identity);
     softmax(output_size, output);
 
     printf("Output: ");

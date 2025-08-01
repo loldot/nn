@@ -46,7 +46,7 @@ int feed_forward_should_compute()
         + -4.0f * 1.2f;
     output2 = tanh(output2 + .3f);
 
-    forward(4, input, 3, output, weights, bias);
+    forward(4, input, 3, output, weights, bias, *activation);
 
     return assert(
         roundf(output0) == roundf(output[0]) &&
@@ -56,10 +56,27 @@ int feed_forward_should_compute()
         "Feed forward should compute the correct output");
 }
 
+int softmax_should_be_100_percent()
+{
+    float input[] = {1.0f, 2.0f, 3.0f};
+    softmax(3, input);
+
+    float sum = 0.0f;
+    for (int i = 0; i < 3; i++)
+    {
+        sum += input[i];
+    }
+
+    return assert(
+        fabs(sum - 1.0f) < 0.0001f,
+        "Softmax should normalize the input to sum to 100%");
+}
 
 int run_tests(int argc, char const *argv[])
 {
-    int n = feed_forward_should_compute();
+    int n = 
+        feed_forward_should_compute() +
+        softmax_should_be_100_percent();
     if (n == 0)
     {
         printf("All tests passed!\n");
