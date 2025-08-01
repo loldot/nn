@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-void print_image(double* input){
-    for (auto i = 0; i < 784; i++)
+void print_image(const float* input){
+    for (int i = 0; i < 784; i++)
     {
         if(i % 28 == 0){
             putchar('\n');
@@ -11,8 +11,8 @@ void print_image(double* input){
     putchar('\n');
 }
 
-void highlight_tensor(double* tensor, int size, int highlight){
-    for (auto i = 0; i < size; i++)
+void highlight_tensor(const float* tensor, int size, int highlight){
+    for (int i = 0; i < size; i++)
     {
         if(i == highlight){
             printf("\033[1;32m");
@@ -25,6 +25,6 @@ void highlight_tensor(double* tensor, int size, int highlight){
     putchar('\n');
 }
 
-void print_tensor(double* tensor, int size) {
+void print_tensor(float* tensor, int size) {
     highlight_tensor(tensor, size, -1);
 }

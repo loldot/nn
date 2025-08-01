@@ -43,37 +43,37 @@ unsigned char* open_dataset(const char* filename, struct stat *data_stat)
     return addr;
 }
 
-void fill_input(__uint8_t* addr, int n, double input[n], int offset){
+void fill_input(__uint8_t* addr, int n, float input[n], int offset){
     for (size_t i = 0; i < n; i++)
     {
-        input[i] = (double)(addr[16 + (n * offset) + i]) / 255.0;
+        input[i] = (float)(addr[16 + (n * offset) + i]) / 255.0f;
     }
 }
 
 // void store_model(
-//     const double* weights, 
-//     const double* bias, 
-//     const double* hidden_weights,
-//     const double* hidden_bias,
+//     const float* weights, 
+//     const float* bias, 
+//     const float* hidden_weights,
+//     const float* hidden_bias,
 //     const char* filename){
 //     FILE* file = fopen(filename, "wb");
-//     fwrite(weights, sizeof(double), input_size * 16, file);
-//     fwrite(bias, sizeof(double), 16, file);
-//     fwrite(hidden_weights, sizeof(double), 16 * 10, file);
-//     fwrite(hidden_bias, sizeof(double), 10, file);
+//     fwrite(weights, sizeof(float), input_size * 16, file);
+//     fwrite(bias, sizeof(float), 16, file);
+//     fwrite(hidden_weights, sizeof(float), 16 * 10, file);
+//     fwrite(hidden_bias, sizeof(float), 10, file);
 //     fclose(file);
 // }
 
 // void load_model(
-//     double* weights, 
-//     double* bias, 
-//     double* hidden_weights,
-//     double* hidden_bias,
+//     float* weights, 
+//     float* bias, 
+//     float* hidden_weights,
+//     float* hidden_bias,
 //     const char* filename){
 //     FILE* file = fopen(filename, "rb");
-//     fread(weights, sizeof(double), input_size * 16, file);
-//     fread(bias, sizeof(double), 16, file);
-//     fread(hidden_weights, sizeof(double), 16 * 10, file);
-//     fread(hidden_bias, sizeof(double), 10, file);
+//     fread(weights, sizeof(float), input_size * 16, file);
+//     fread(bias, sizeof(float), 16, file);
+//     fread(hidden_weights, sizeof(float), 16 * 10, file);
+//     fread(hidden_bias, sizeof(float), 10, file);
 //     fclose(file);
 // }
