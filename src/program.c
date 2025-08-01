@@ -9,6 +9,7 @@ int main(int argc, char const *argv[])
         run_tests(argc, argv);
         return 0;
     }
-    run_training(argc, argv);
+    
+    run_model(argc, argv);
     return 0;
 }

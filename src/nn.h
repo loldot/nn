@@ -1,5 +1,10 @@
+#pragma once
+
+#include <stdlib.h>
+#include <math.h>
+
 void stochastic_gradient_descent();
-int run_training(int argc, char const *argv[]);
+int run_model(int argc, char const *argv[]);
 
 void forward(
     const int m,

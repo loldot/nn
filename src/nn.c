@@ -1,29 +1,21 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <time.h>
 #include <sys/mman.h>
+
 #include "debug.h"
-#include "io.h"
 #include "nn.h"
+#include "io.h"
 
 #define input_size 784
-#define hidden_size 16
+#define hidden_size 32
 #define output_size 10
 
 #define epochs 30
 #define training_set_size 60000
 
 float learning_rate = 0.01f;
-
-int max_index(const int size, const float tensor[size])
-{
-    int max = 0;
-    for (int i = 0; i < size; i++)
-    {
-        max = (tensor[i] > tensor[max]) ? i : max;
-    }
-    return max;
-}
 
 struct stat data_stat;
 unsigned char *data = NULL;
@@ -40,6 +32,40 @@ float bias_1[hidden_size];
 // Hidden layer 2
 float weights_2[hidden_size][output_size];
 float bias_2[output_size];
+
+int max_index(const int size, const float tensor[size])
+{
+    int max = 0;
+    for (int i = 0; i < size; i++)
+    {
+        max = (tensor[i] > tensor[max]) ? i : max;
+    }
+    return max;
+}
+
+float xavier_init(float m, float n)
+{
+    return ((float)rand() / (float)RAND_MAX - 0.5f) * 2.0f * sqrt(6.0f / (m + n));
+}
+
+void init_layer(
+    const int m,
+    const int n,
+    float weights[m][n],
+    float bias[n])
+{
+    for (int j = 0; j < m; j++)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            weights[j][i] = xavier_init(m, n);
+        }
+    }
+    for (int i = 0; i < n; i++)
+    {
+        bias[i] = 0.0f;
+    }
+}
 
 float activation(float x)
 {
@@ -85,7 +111,7 @@ void forward_linear(
         float sum = .0f;
         for (int j = 0; j < m; j++)
         {
-            sum += input[j] * weights[j][i];  // Fixed: weights[input][output]
+            sum += input[j] * weights[j][i];
         }
         output[i] = sum + bias[i];
     }
@@ -174,24 +200,12 @@ void predict_debug(
     highlight_tensor(output, output_size, max_index(output_size, output));
 }
 
-int recognize_digit(const float input[input_size])
-{
-    float hidden[hidden_size];
-    float hidden2[hidden_size];
-    float output[output_size];
-
-    print_image(input);
-    predict_debug(input, hidden, hidden2, output);
-
-    return max_index(output_size, output);
-}
-
 int backprop(const float input[input_size], const float expected[output_size])
 {
     float output[output_size];
     float hidden1[hidden_size];
     float hidden2[hidden_size];
-    
+
     float output_error[output_size];
     float hidden1_error[hidden_size];
     float hidden2_error[hidden_size];
@@ -210,7 +224,7 @@ int backprop(const float input[input_size], const float expected[output_size])
         float sum = 0.0f;
         for (int j = 0; j < output_size; j++)
         {
-            sum += weights_2[i][j] * output_error[j];  // Fixed: weights[input][output]
+            sum += weights_2[i][j] * output_error[j];
         }
         hidden2_error[i] = sum * activation_prime(hidden2[i]);
     }
@@ -221,10 +235,10 @@ int backprop(const float input[input_size], const float expected[output_size])
         float sum = 0.0f;
         for (size_t j = 0; j < hidden_size; j++)
         {
-            sum += weights_1[i][j] * hidden2_error[j];  // Fixed: weights[input][output]
+            sum += weights_1[i][j] * hidden2_error[j];
         }
         hidden1_error[i] = sum * activation_prime(hidden1[i]);
-    }   
+    }
 
     // 4. Update Weights and Biases
     // Update weights_0: input -> hidden1
@@ -273,6 +287,9 @@ void stochastic_gradient_descent()
 {
     float input[input_size];
     float label[output_size];
+    float hidden[hidden_size];
+    float hidden2[hidden_size];
+    float output[output_size];
 
     int expected, guess;
     int correct = 0;
@@ -280,10 +297,6 @@ void stochastic_gradient_descent()
     for (size_t e = 0; e < epochs; e++)
     {
         correct = 0;
-
-        fill_input(data, input_size, input, e);
-        guess = recognize_digit(input);
-        printf("Guess: %d\n", guess);
 
         for (size_t i = 0; i < training_set_size; i++)
         {
@@ -302,6 +315,14 @@ void stochastic_gradient_descent()
             correct += (expected == guess) ? 1 : 0;
         }
         learning_rate *= 0.9f; // Decay learning rate
+
+        // Print progress
+        fill_input(data, input_size, input, rand() % training_set_size);
+        print_image(input);
+        predict_debug(input, hidden, hidden2, output);
+
+        guess = max_index(output_size, output);
+        printf("Guess: %d\n", guess);
         printf("Epoch %zu: %d / %d\n", e, correct, training_set_size);
     }
 }
@@ -315,48 +336,123 @@ void init()
     if (labels == NULL || data == NULL)
         exit(1);
 
-    // Xavier/Glorot initialization for better convergence
-    for (int j = 0; j < input_size; j++)
-    {
-        for (int i = 0; i < hidden_size; i++)
-        {
-            weights_0[j][i] = ((float)rand() / RAND_MAX - 0.5f) * 2.0f * sqrt(6.0f / (input_size + hidden_size));
-        }
-    }
-    for (int i = 0; i < hidden_size; i++)
-    {
-        bias_0[i] = 0.0f;
-    }
-    
-    for (int j = 0; j < hidden_size; j++)
-    {
-        for (int i = 0; i < hidden_size; i++)
-        {
-            weights_1[j][i] = ((float)rand() / RAND_MAX - 0.5f) * 2.0f * sqrt(6.0f / (hidden_size + hidden_size));
-        }
-    }
-    for (int i = 0; i < hidden_size; i++)
-    {
-        bias_1[i] = 0.0f;
-    }
-
-    for (int j = 0; j < hidden_size; j++)
-    {
-        for (int i = 0; i < output_size; i++)
-        {
-            weights_2[j][i] = ((float)rand() / RAND_MAX - 0.5f) * 2.0f * sqrt(6.0f / (hidden_size + output_size));
-        }
-    }
-    for (int i = 0; i < output_size; i++)
-    {
-        bias_2[i] = 0.0f;
-    }
+    init_layer(input_size, hidden_size, weights_0, bias_0);
+    init_layer(hidden_size, hidden_size, weights_1, bias_1);
+    init_layer(hidden_size, output_size, weights_2, bias_2);
 }
 
-int run_training(int argc, char const *argv[])
+void evaluate_model()
 {
+    // Test/evaluation data
+    struct stat test_data_stat;
+    unsigned char *test_data = NULL;
+    unsigned char *test_labels = NULL;
+
+    printf("\n=== Model Evaluation ===\n");
+
+    // Load test data
+    test_labels = read_labels("./data/t10k-labels.idx1-ubyte");
+    test_data = open_dataset("./data/t10k-images.idx3-ubyte", &test_data_stat);
+
+    if (test_labels == NULL || test_data == NULL)
+    {
+        printf("Error: Could not load test data\n");
+        return;
+    }
+
+    float input[input_size];
+    int correct = 0;
+    int total_test_samples = 10000;
+
+    // Confusion matrix for detailed analysis
+    int confusion_matrix[output_size][output_size] = {0};
+
+    printf("Evaluating on %d test samples...\n", total_test_samples);
+
+    for (int i = 0; i < total_test_samples; i++)
+    {
+        fill_input(test_data, input_size, input, i);
+
+        float hidden1[hidden_size];
+        float hidden2[hidden_size];
+        float output[output_size];
+
+        predict(input, hidden1, hidden2, output);
+
+        int predicted = max_index(output_size, output);
+        int actual = test_labels[i];
+
+        confusion_matrix[actual][predicted]++;
+
+        if (predicted == actual)
+        {
+            correct++;
+        }
+
+        // Print progress every 1000 samples
+        if ((i + 1) % 1000 == 0)
+        {
+            printf("Processed %d/%d samples\n", i + 1, total_test_samples);
+        }
+    }
+
+    float accuracy = (float)correct / total_test_samples * 100.0f;
+    printf("\n=== Results ===\n");
+    printf("Test Accuracy: %.2f%% (%d/%d)\n", accuracy, correct, total_test_samples);
+
+    // Print per-class accuracy
+    printf("\nPer-class accuracy:\n");
+    for (int i = 0; i < output_size; i++)
+    {
+        int class_total = 0;
+        int class_correct = confusion_matrix[i][i];
+
+        for (int j = 0; j < output_size; j++)
+        {
+            class_total += confusion_matrix[i][j];
+        }
+
+        if (class_total > 0)
+        {
+            float class_accuracy = (float)class_correct / class_total * 100.0f;
+            printf("Digit %d: %.2f%% (%d/%d)\n", i, class_accuracy, class_correct, class_total);
+        }
+    }
+
+    // Print confusion matrix
+    printf("\nConfusion Matrix:\n");
+    printf("Actual\\Pred");
+    for (int j = 0; j < output_size; j++)
+    {
+        printf("%5d", j);
+    }
+    printf("\n");
+
+    for (int i = 0; i < output_size; i++)
+    {
+        printf("    %d      ", i);
+        for (int j = 0; j < output_size; j++)
+        {
+            printf("%5d", confusion_matrix[i][j]);
+        }
+        printf("\n");
+    }
+
+    // Cleanup test data
+    munmap(test_data, test_data_stat.st_size);
+    free(test_labels);
+}
+
+int run_model(int argc, char const *argv[])
+{
+    printf("=== Neural Network Training ===\n");
     init();
     stochastic_gradient_descent();
+
+    printf("\n=== Training Complete ===\n");
+
+    // Evaluate the trained model
+    evaluate_model();
 
     munmap(data, data_stat.st_size);
     free(labels);
